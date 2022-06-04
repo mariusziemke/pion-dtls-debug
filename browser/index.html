@@ -1,0 +1,37 @@
+<script>
+
+    let ws, pc
+
+    function connect() {
+        this.ws = new WebSocket("ws://127.0.0.1:4444/signaling")
+
+        this.pc = new RTCPeerConnection()
+
+        this.pc.onconnectionstatechange = () => {
+            console.log(this.pc.iceConnectionState)
+        }
+
+        this.ws.onmessage = async msg => {
+            const sdp = JSON.parse(msg.data)
+            if (sdp.type === 'offer') {
+                await this.pc.setRemoteDescription(sdp)
+                const answer = await this.pc.createAnswer()
+                await this.pc.setLocalDescription(answer)
+                this.ws.send(JSON.stringify(answer))
+            } else if (sdp.type === 'answer') {
+                console.log("received answer")
+                await this.pc.setRemoteDescription(sdp)
+            }
+        }
+    }
+
+    async function renegotiate() {
+        console.log("renegotiating..")
+        const offer = await this.pc.createOffer()
+        await this.pc.setLocalDescription(offer)
+        this.ws.send(JSON.stringify(offer))
+    }
+</script>
+
+<button onclick="connect()">Connect</button>
+<button onclick="renegotiate()">Renegotiate</button>
